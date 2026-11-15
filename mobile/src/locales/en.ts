@@ -1,6 +1,7 @@
 import type { Dict } from './fr';
 
 const en: Dict = {
+  demo: { title: 'Demo version', text: 'Fictitious data, no real payment. Requests are accepted automatically after a few seconds. Everything resets on restart.', accounts: 'Demo accounts (any password): salma@rentaya.ma (driver) or youssef@rentaya.ma (owner).', useDriver: 'Fill in the driver account', noDocs: 'The PDF contract and invoice are available in the server-connected version.' },
   tabs: { search: 'Search', trips: 'My trips', messages: 'Messages', garage: 'My cars', profile: 'Profile' },
   common: {
     add: 'Add', all: 'All', apply: 'Apply', back: 'Back', cancel: 'Cancel', choose: 'Choose', clear: 'Clear', confirm: 'Confirm',

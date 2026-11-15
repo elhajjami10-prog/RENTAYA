@@ -18,7 +18,8 @@ export default function CarMap({ cars, center, onSelect, height = 400, approx }:
 
   useEffect(() => {
     let cancelled = false;
-    import('leaflet').then((mod) => {
+    import('leaflet').catch(() => null).then((mod) => {
+      if (!mod) return;
       const L = ((mod as any).default || mod) as typeof Leaflet;
       if (cancelled || !ref.current) return;
       LRef.current = L;

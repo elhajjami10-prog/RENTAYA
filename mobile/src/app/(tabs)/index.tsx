@@ -7,12 +7,12 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, IconButton, Row, Section, T } from '../../components/ui';
+import { Button, Card, IconButton, Notice, Row, Section, T } from '../../components/ui';
 import { CarCard, type CarSummary } from '../../components/CarCard';
 import { CityPicker } from '../../components/CityPicker';
 import { DateRangePicker } from '../../components/DateRangePicker';
 import { useSearch, CITIES } from '../../lib/search';
-import { api } from '../../lib/api';
+import { api, DEMO } from '../../lib/api';
 import { fmtDateTime, money } from '../../lib/format';
 import { colors, gradient, radius, shadow } from '../../lib/theme';
 import { useAuth } from '../../lib/auth';
@@ -73,6 +73,7 @@ export default function Home() {
 
       <View style={st.inner}>
         <View style={{ paddingHorizontal: 16 }}>
+          {DEMO ? <View style={{ marginTop: 16 }}><Notice icon="flask" title={t('demo.title')} text={t('demo.text')} /></View> : null}
           <Section title={t('home.popularCities')}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
               {CITIES.slice(0, 8).map((c, i) => (

@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Notice, Screen, T } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { DEMO } from '../../lib/api';
 import { apiErrorMessage } from '../../lib/format';
 
 export default function Login() {
@@ -26,6 +27,7 @@ export default function Login() {
         <Image source={require('../../../assets/logo-full.png')} style={{ width: 180, height: 180 }} contentFit="contain" />
       </View>
       <T variant="h2" style={{ marginBottom: 16 }}>{t('auth.welcomeBack')}</T>
+      {DEMO ? <View style={{ marginBottom: 12 }}><Notice icon="flask" text={t('demo.accounts')} action={t('demo.useDriver')} onAction={() => { setEmail('salma@rentaya.ma'); setPassword('demo'); }} /></View> : null}
       {error ? <View style={{ marginBottom: 12 }}><Notice tone="danger" icon="alert-circle" text={error} /></View> : null}
       <Field label={t('auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
       <Field label={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />

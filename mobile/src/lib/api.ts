@@ -1,6 +1,10 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { secure } from './storage';
+import { demoApi } from './demo/mock';
+
+/** Mode démo : l'app fonctionne sans serveur, avec des données fictives. */
+export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
 
 /** URL de l'API : EXPO_PUBLIC_API_URL, sinon l'IP du poste de dev (Expo Go sur téléphone). */
 function resolveBase() {
@@ -23,6 +27,10 @@ export class ApiError extends Error {
 }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; query?: Record<string, unknown> } = {}): Promise<T> {
+  if (DEMO) {
+    try { return (await demoApi(opts.method || (opts.body ? 'POST' : 'GET'), path, opts.query as never, opts.body as never, token)) as T; }
+    catch (e: any) { throw new ApiError(e.status || 500, e.code || 'SERVER_ERROR', e.details); }
+  }
   const qs = opts.query
     ? '?' + Object.entries(opts.query).filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')
     : '';
@@ -38,6 +46,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
 
 /** Envoi de fichiers (photos de voiture, documents, état des lieux…). */
 export async function uploadFiles(uris: { uri: string; mimeType?: string | null; fileName?: string | null }[]): Promise<string[]> {
+  if (DEMO) return uris.map((u) => u.uri);
   const form = new FormData();
   for (const [i, f] of uris.entries()) {
     const type = f.mimeType || 'image/jpeg';

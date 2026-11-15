@@ -1,4 +1,5 @@
 const fr = {
+  demo: { title: 'Version de démonstration', text: 'Données fictives, aucun vrai paiement. Les demandes sont acceptées automatiquement après quelques secondes. Tout est réinitialisé au redémarrage.', accounts: 'Comptes démo (mot de passe libre) : salma@rentaya.ma (conductrice) ou youssef@rentaya.ma (propriétaire).', useDriver: 'Remplir avec la conductrice', noDocs: 'Le contrat et la facture PDF sont disponibles dans la version connectée au serveur.' },
   tabs: { search: 'Rechercher', trips: 'Mes locations', messages: 'Messages', garage: 'Mes voitures', profile: 'Profil' },
   common: {
     add: 'Ajouter', all: 'Tous', apply: 'Appliquer', back: 'Retour', cancel: 'Annuler', choose: 'Choisir', clear: 'Effacer', confirm: 'Confirmer',

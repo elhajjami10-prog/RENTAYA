@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
@@ -21,6 +21,7 @@ const METHODS: { m: Method; icon: string }[] = [
 export default function Pay() {
   const { id, extensionId, chargeId, amount: amountParam } = useLocalSearchParams<{ id: string; extensionId?: string; chargeId?: string; amount?: string }>();
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const [method, setMethod] = useState<Method>('CMI');
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState<{ paymentId: string; instructions: string; reference: string; amount: number } | null>(null);
@@ -35,7 +36,7 @@ export default function Pay() {
     try {
       const returnUrl = Platform.OS === 'web' ? `${window.location.origin}/payment-result` : Linking.createURL('payment-result');
       const r = await api(path, { body: { method, redirect: returnUrl } });
-      if (r.status === 'PAID') return router.replace(`/booking/${id}`);
+      if (r.status === 'PAID') { await qc.invalidateQueries(); return router.replace(`/booking/${id}`); }
       if (r.redirectUrl) {
         if (Platform.OS === 'web') { window.location.href = r.redirectUrl; return; }
         const res = await WebBrowser.openAuthSessionAsync(r.redirectUrl, returnUrl);
@@ -52,6 +53,7 @@ export default function Pay() {
     setBusy(true);
     try {
       await api(`/payments/${manual.paymentId}/proof`, { body: { proofUrl: proof[0] } });
+      await qc.invalidateQueries();
       Alert.alert(t('payment.proofSent'), t('payment.awaitingValidationText'));
       router.replace(`/booking/${id}`);
     } catch (e) { Alert.alert(t('errors.title'), apiErrorMessage(e)); }

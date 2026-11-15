@@ -7,7 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Button, Card, Divider, KV, ListItem, Loading, Notice, Row, Screen, Section, Stars, T } from '../../../components/ui';
 import { PriceBreakdown, StatusBadge } from '../../../components/booking-ui';
-import { api, authedUrl } from '../../../lib/api';
+import { api, authedUrl, DEMO } from '../../../lib/api';
 import { apiErrorMessage, fmtDateTime, money } from '../../../lib/format';
 import { colors, radius } from '../../../lib/theme';
 
@@ -48,7 +48,7 @@ export default function BookingDetail() {
       : b.status === 'CONFIRMED' ? t('booking.cancelRefund', { amount: money(p.refund) }) : t('booking.cancelConfirm');
     confirm(t('booking.cancel'), msg, () => run(() => api(`/bookings/${id}/cancel`, { body: {} })), t('booking.cancel'));
   };
-  const openDoc = (path: string) => (Platform.OS === 'web' ? window.open(authedUrl(path), '_blank') : WebBrowser.openBrowserAsync(authedUrl(path)));
+  const openDoc = (path: string) => DEMO ? Alert.alert('Démo', t('demo.noDocs')) : (Platform.OS === 'web' ? window.open(authedUrl(path), '_blank') : WebBrowser.openBrowserAsync(authedUrl(path)));
 
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>

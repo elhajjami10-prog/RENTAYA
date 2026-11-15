@@ -1,6 +1,7 @@
 import type { Dict } from './fr';
 
 const ar: Dict = {
+  demo: { title: 'نسخة تجريبية', text: 'بيانات وهمية دون أي أداء حقيقي. تُقبل الطلبات تلقائيًا بعد ثوانٍ. تُعاد تهيئة كل شيء عند إعادة التشغيل.', accounts: 'حسابات تجريبية (أي كلمة مرور): salma@rentaya.ma (سائقة) أو youssef@rentaya.ma (مالك).', useDriver: 'ملء حساب السائقة', noDocs: 'العقد والفاتورة PDF متاحان في النسخة المتصلة بالخادم.' },
   tabs: { search: 'بحث', trips: 'حجوزاتي', messages: 'الرسائل', garage: 'سياراتي', profile: 'حسابي' },
   common: {
     add: 'إضافة', all: 'الكل', apply: 'تطبيق', back: 'رجوع', cancel: 'إلغاء', choose: 'اختيار', clear: 'مسح', confirm: 'تأكيد',
