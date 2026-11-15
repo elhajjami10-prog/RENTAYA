@@ -13,9 +13,42 @@ export function useLoad<T = any>(path: string, query?: Record<string, unknown>) 
   return { data, error, reload };
 }
 
+// Boîtes de dialogue intégrées à la page (alert/confirm/prompt du navigateur ne sont pas toujours disponibles).
+type Dlg = { message: string; input: boolean; value: string; resolve: (v: string | null) => void };
+let setDlg: ((d: Dlg | null) => void) | null = null;
+const open = (message: string, input: boolean, value = '') => new Promise<string | null>((resolve) => {
+  if (!setDlg) return resolve(input ? window.prompt(message, value) : window.confirm(message) ? '' : null);
+  setDlg({ message, input, value, resolve });
+});
+/** Demande une saisie ; renvoie null si annulé. */
+export const ask = (message: string, value = '') => open(message, true, value);
+/** Demande une confirmation. */
+export const confirmAsk = async (message: string) => (await open(message, false)) !== null;
+/** Affiche un message. */
+export const notice = async (message: string) => { await open(message, false); };
+
+export function DialogHost() {
+  const [d, set] = useState<Dlg | null>(null);
+  useEffect(() => { setDlg = set; return () => { setDlg = null; }; }, []);
+  if (!d) return null;
+  const close = (v: string | null) => { set(null); d.resolve(v); };
+  return (
+    <div className="overlay center" onClick={() => close(null)}>
+      <form className="dialog" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); close(d.input ? d.value : ''); }}>
+        <p>{d.message}</p>
+        {d.input ? <input id="dialog-input" autoFocus value={d.value} onChange={(e) => set({ ...d, value: e.target.value })} /> : null}
+        <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
+          <button type="button" className="secondary" onClick={() => close(null)}>Annuler</button>
+          <button type="submit">OK</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export async function act(fn: () => Promise<unknown>, done?: () => void, confirmMsg?: string) {
-  if (confirmMsg && !confirm(confirmMsg)) return;
-  try { await fn(); done?.(); } catch (e) { alert((e as Error).message); }
+  if (confirmMsg && !(await confirmAsk(confirmMsg))) return;
+  try { await fn(); done?.(); } catch (e) { notice((e as Error).message); }
 }
 
 const TONES: Record<string, string> = {

@@ -53,3 +53,9 @@ td.empty { text-align: center; color: var(--soft); padding: 30px; }
 .chart div { flex: 1; background: linear-gradient(var(--pl), var(--pd)); border-radius: 4px 4px 0 0; min-height: 2px; }
 .msg { padding: 8px 10px; border-radius: 10px; background: var(--bg); margin-bottom: 6px; font-size: 13px; }
 .msg.sys { background: transparent; color: var(--soft); font-style: italic; }
+
+.overlay.center { justify-content: center; align-items: center; }
+.dialog { background: #fff; border-radius: 16px; padding: 20px; width: min(440px, calc(100% - 32px)); box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+.dialog p { margin: 0 0 10px; font-weight: 600; }
+.dialog input { width: 100%; }
+.demo { background: var(--ps); color: var(--pd); font-size: 13px; padding: 10px; border-radius: 10px; }

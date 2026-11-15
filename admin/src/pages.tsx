@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api, dt, mad } from './api';
-import { act, Badge, Filters, Img, KV, Modal, Table, useLoad } from './ui';
+import { act, ask, Badge, Filters, Img, KV, Modal, notice, Table, useLoad } from './ui';
 
 // ---------------- Tableau de bord ----------------
 export function Dashboard() {
@@ -83,7 +83,7 @@ function UserDetail({ id, onClose }: { id: string; onClose: () => void }) {
         <button onClick={() => verify('VERIFIED')}>Valider le profil</button>
         <button className="danger" onClick={() => verify('REJECTED')}>Refuser</button>
         <button className="secondary" onClick={() => act(() => api(`/admin/users/${id}`, { method: 'PATCH', body: { suspended: !u.suspended } }), reload, u.suspended ? undefined : 'Suspendre ce compte ?')}>{u.suspended ? 'Réactiver' : 'Suspendre'}</button>
-        <button className="secondary" onClick={() => { const a = prompt('Montant à créditer (négatif pour débiter), en MAD'); const n = prompt('Motif'); if (a && n) act(() => api(`/admin/users/${id}/wallet`, { body: { amount: Number(a), note: n } }), reload); }}>Ajuster le crédit</button>
+        <button className="secondary" onClick={async () => { const a = await ask('Montant à créditer (négatif pour débiter), en MAD'); const n = await ask('Motif'); if (a && n) act(() => api(`/admin/users/${id}/wallet`, { body: { amount: Number(a), note: n } }), reload); }}>Ajuster le crédit</button>
       </div>
       <h3>Voitures</h3>
       {u.cars.map((c: any) => <KV key={c.id} k={`${c.make} ${c.model} (${c.plate})`} v={<Badge v={c.status} />} />)}
@@ -127,7 +127,7 @@ export function Cars() {
           {!sel.documents.length ? <p>Aucun document fourni.</p> : null}
           <div className="row" style={{ marginTop: 14 }}>
             <button onClick={() => act(() => api(`/admin/cars/${sel.id}/review`, { body: { status: 'ACTIVE' } }), () => { setSel(null); reload(); })}>Publier</button>
-            <button className="danger" onClick={() => { const reason = prompt('Motif du refus (envoyé au propriétaire)'); if (reason) act(() => api(`/admin/cars/${sel.id}/review`, { body: { status: 'REJECTED', reason } }), () => { setSel(null); reload(); }); }}>Refuser</button>
+            <button className="danger" onClick={async () => { const reason = await ask('Motif du refus (envoyé au propriétaire)'); if (reason) act(() => api(`/admin/cars/${sel.id}/review`, { body: { status: 'REJECTED', reason } }), () => { setSel(null); reload(); }); }}>Refuser</button>
             <button className="secondary" onClick={() => act(() => api(`/admin/cars/${sel.id}/review`, { body: { status: 'PAUSED' } }), () => { setSel(null); reload(); })}>Mettre en pause</button>
           </div>
         </Modal>
@@ -239,7 +239,7 @@ export function Refunds() {
         ['Référence', (p: any) => p.orderId], ['Réservation', (p: any) => p.booking?.reference], ['Client', (p: any) => `${p.user.firstName} ${p.user.lastName} — ${p.user.rib || p.user.email}`],
         ['Moyen d\'origine', (p: any) => `${p.method} ${(p.raw as any)?.originalOrderId || ''}`], ['Montant', (p: any) => mad(p.amount)], ['Motif', (p: any) => (p.raw as any)?.note],
         ['Statut', (p: any) => <Badge v={p.status} />],
-        ['Action', (p: any) => (p.status === 'PENDING' ? <button onClick={() => { const ref = prompt('Référence de l\'opération (CMI / virement)') || undefined; act(() => api(`/admin/payments/${p.id}/refunded`, { body: { providerRef: ref } }), reload); }}>Marquer remboursé</button> : p.providerRef)],
+        ['Action', (p: any) => (p.status === 'PENDING' ? <button onClick={async () => { const ref = await ask('Référence de l\'opération (CMI / virement)') || undefined; act(() => api(`/admin/payments/${p.id}/refunded`, { body: { providerRef: ref } }), reload); }}>Marquer remboursé</button> : p.providerRef)],
       ]} />
     </>
   );
@@ -254,7 +254,7 @@ export function Payouts() {
       <h1>Versements aux propriétaires</h1>
       <div className="bar">
         <Filters value={status} onChange={setStatus} options={['PENDING', 'PROCESSING', 'PAID', 'FAILED']} />
-        <button className="secondary" onClick={() => act(async () => { const r = await api('/admin/payouts/generate', { body: {} }); alert(`${r.created} versement(s) créé(s)`); }, reload)}>Générer les versements</button>
+        <button className="secondary" onClick={() => act(async () => { const r = await api('/admin/payouts/generate', { body: {} }); notice(`${r.created} versement(s) créé(s)`); }, reload)}>Générer les versements</button>
       </div>
       <Table rows={data?.items || []} cols={[
         ['Propriétaire', (p: any) => `${p.owner.firstName} ${p.owner.lastName}${p.owner.companyName ? ` (${p.owner.companyName})` : ''}`],
@@ -262,7 +262,7 @@ export function Payouts() {
         ['Locations', (p: any) => p.bookings.map((b: any) => b.reference).join(', ')], ['Statut', (p: any) => <Badge v={p.status} />], ['Créé', (p: any) => dt(p.createdAt)],
         ['Actions', (p: any) => (p.status !== 'PAID' ? (
           <div className="row">
-            <button onClick={() => { const reference = prompt('Référence du virement') || undefined; act(() => api(`/admin/payouts/${p.id}`, { body: { status: 'PAID', reference } }), reload); }}>Marquer payé</button>
+            <button onClick={async () => { const reference = await ask('Référence du virement') || undefined; act(() => api(`/admin/payouts/${p.id}`, { body: { status: 'PAID', reference } }), reload); }}>Marquer payé</button>
             <button className="secondary" onClick={() => act(() => api(`/admin/payouts/${p.id}`, { body: { status: 'FAILED' } }), reload)}>Échec</button>
           </div>
         ) : p.reference)],
@@ -285,7 +285,7 @@ export function Claims() {
         ['Photos', (c: any) => <div className="row">{c.photos.map((u: string) => <Img key={u} src={u} />)}</div>], ['Estimation', (c: any) => (c.estimate ? mad(c.estimate) : '—')],
         ['Statut', (c: any) => <Badge v={c.status} />],
         ['Action', (c: any) => (
-          <select value="" onChange={(e) => { const s = e.target.value; if (!s) return; const resolution = prompt('Message aux parties (facultatif)') || undefined; act(() => api(`/admin/claims/${c.id}`, { method: 'PATCH', body: { status: s, resolution } }), reload); }}>
+          <select value="" onChange={async (e) => { const s = e.target.value; if (!s) return; const resolution = await ask('Message aux parties (facultatif)') || undefined; act(() => api(`/admin/claims/${c.id}`, { method: 'PATCH', body: { status: s, resolution } }), reload); }}>
             <option value="">Changer…</option><option>UNDER_REVIEW</option><option>RESOLVED</option><option>REJECTED</option>
           </select>
         )],
@@ -307,7 +307,7 @@ export function Charges() {
         ['Statut', (c: any) => <Badge v={c.status} />],
         ['Décision', (c: any) => (c.status === 'CONTESTED' || c.status === 'PENDING' ? (
           <div className="row">
-            <button onClick={() => { const a = prompt('Montant retenu (MAD)', String(c.amount)); if (a) act(() => api(`/admin/charges/${c.id}`, { body: { status: 'ACCEPTED', amount: Number(a) } }), reload); }}>Maintenir</button>
+            <button onClick={async () => { const a = await ask('Montant retenu (MAD)', String(c.amount)); if (a) act(() => api(`/admin/charges/${c.id}`, { body: { status: 'ACCEPTED', amount: Number(a) } }), reload); }}>Maintenir</button>
             <button className="danger" onClick={() => act(() => api(`/admin/charges/${c.id}`, { body: { status: 'REJECTED' } }), reload)}>Annuler</button>
           </div>
         ) : null)],
@@ -327,7 +327,7 @@ export function Tickets() {
       <Table rows={data || []} cols={[
         ['Date', (t: any) => dt(t.createdAt)], ['Client', (t: any) => `${t.user.firstName} ${t.user.lastName} — ${t.user.email} ${t.user.phone || ''}`],
         ['Sujet', (t: any) => <b>{t.subject}</b>], ['Message', (t: any) => t.body], ['Réponse', (t: any) => t.reply || '—'], ['Statut', (t: any) => <Badge v={t.status} />],
-        ['Action', (t: any) => <button onClick={() => { const reply = prompt('Votre réponse', t.reply || ''); if (reply !== null) act(() => api(`/admin/tickets/${t.id}`, { body: { reply, status: 'CLOSED' } }), reload); }}>Répondre</button>],
+        ['Action', (t: any) => <button onClick={async () => { const reply = await ask('Votre réponse', t.reply || ''); if (reply !== null) act(() => api(`/admin/tickets/${t.id}`, { body: { reply, status: 'CLOSED' } }), reload); }}>Répondre</button>],
       ]} />
     </>
   );
@@ -465,7 +465,7 @@ export function Settings() {
   const [f, setF] = useState<Record<string, any> | null>(null);
   const v = f || data;
   if (!v) return <p>Chargement…</p>;
-  const save = () => act(() => api('/admin/settings', { method: 'PUT', body: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, typeof data![k] === 'number' ? Number(x) : x])) }), () => { setF(null); reload(); alert('Paramètres enregistrés'); });
+  const save = () => act(() => api('/admin/settings', { method: 'PUT', body: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, typeof data![k] === 'number' ? Number(x) : x])) }), () => { setF(null); reload(); notice('Paramètres enregistrés'); });
   return (
     <>
       <h1>Paramètres de la plateforme</h1>

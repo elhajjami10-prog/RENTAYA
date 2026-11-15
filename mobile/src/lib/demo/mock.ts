@@ -35,7 +35,7 @@ const db = {
   help: (raw as Any).help as Any[],
   bookings: [] as Any[], payments: [] as Any[], inspections: [] as Any[], extensions: [] as Any[], charges: [] as Any[], claims: [] as Any[],
   conversations: [] as Any[], messages: [] as Any[], notifications: [] as Any[], favorites: [] as Any[], unav: [] as Any[], overrides: [] as Any[],
-  walletTxs: [] as Any[], tickets: [] as Any[], documents: [] as Any[], promos: [
+  walletTxs: [] as Any[], tickets: [] as Any[], documents: [] as Any[], promos: <Any[]>[
     { code: 'BIENVENUE', type: 'PERCENT', value: 10, maxDiscount: 200, minAmount: 0, firstBookingOnly: true },
     { code: 'RENTAYA50', type: 'FIXED', value: 50, minAmount: 300, firstBookingOnly: false },
   ],
@@ -140,6 +140,20 @@ function makeBooking(driverId: string, c: Any, start: Date, days: number, status
   makeBooking(salma.id, ycars[2] || ycars[0], new Date(Date.now() + 12 * DAY), 2, 'REQUESTED');
   for (const c of [db.cars[5], db.cars[12], db.cars[20]]) if (c) db.favorites.push({ userId: salma.id, carId: c.id });
   salma.walletBalance = 100;
+  db.users.unshift({ ...youssef, id: 'admin', email: 'admin@rentaya.ma', role: 'ADMIN', firstName: 'Admin', lastName: 'Rentaya', phone: '+212600000001', isPro: false, companyName: null, rib: null, referralCode: 'ADMIN01', ratingAvg: 0, ratingCount: 0 });
+  const pics = db.cars.map((x) => x.photos[0].url);
+  const nadia = { ...salma, id: 'nadia', email: 'nadia@rentaya.ma', firstName: 'Nadia', lastName: 'Bennani', phone: '+212667000007', city: 'Tanger', verificationStatus: 'PENDING', walletBalance: 0, referralCode: 'NADIA01', ratingAvg: 0, ratingCount: 0, cinNumber: 'K123456', licenseNumber: 'TG998877' };
+  db.users.push(nadia);
+  for (const [i, t] of ['ID_FRONT', 'ID_BACK', 'LICENSE_FRONT', 'LICENSE_BACK', 'SELFIE'].entries()) db.documents.push({ id: id('d'), userId: nadia.id, type: t, url: pics[i], status: 'PENDING' });
+  const pend = { ...ycars[0], id: 'car-pending', make: 'Hyundai', model: 'i10', year: 2020, plate: '55555-ب-40', city: 'Tanger', status: 'PENDING_REVIEW', ownerId: byEmail('mehdi@rentaya.ma')?.id || youssef.id, ratingAvg: 0, ratingCount: 0, tripsCount: 0 };
+  db.cars.push(pend);
+  db.documents.push({ id: id('d'), carId: pend.id, type: 'CAR_REGISTRATION', url: pics[3], status: 'PENDING' });
+  const wb = makeBooking(nadia.id, other[8], new Date(Date.now() + 9 * DAY), 3, 'PENDING_PAYMENT', { paymentMethod: 'WAFACASH' });
+  db.payments.push({ id: id('p'), bookingId: wb.id, userId: nadia.id, type: 'BOOKING', method: 'WAFACASH', status: 'AWAITING_VALIDATION', amount: wb.totalPrice, orderId: ref('PAY'), proofUrl: pics[10], createdAt: iso(now()) });
+  const done = makeBooking(salma.id, other[10], new Date(Date.now() - 10 * DAY), 2, 'COMPLETED');
+  db.charges.push({ id: id('ch'), bookingId: done.id, type: 'FUEL', amount: 280, description: 'Carburant manquant : 2/8', proofUrls: [], status: 'CONTESTED', response: 'J\'ai fait le plein avant de rendre la voiture.', createdAt: iso(now()) });
+  db.claims.push({ id: id('cl'), bookingId: done.id, reporterId: done.ownerId, description: 'Rayure sur la portière arrière droite constatée au retour.', photos: [pics[12]], estimate: 1500, status: 'OPEN', createdAt: iso(now()) });
+  db.tickets.push({ id: id('t'), userId: salma.id, subject: 'Question sur la caution', body: 'Bonjour, la caution est-elle prélevée sur ma carte ?', status: 'OPEN', createdAt: iso(now()) });
   db.walletTxs.push({ id: id('w'), userId: salma.id, type: 'REFERRAL_BONUS', amount: 100, note: 'Bonus de parrainage', createdAt: iso(new Date(Date.now() - 30 * DAY)) });
   for (const u of db.users) notify(u.id, 'WELCOME', 'Bienvenue sur Rentaya (démo) !', 'Version de démonstration : les données sont fictives et réinitialisées au redémarrage.');
 })();
@@ -245,7 +259,7 @@ type H = (c: Ctx, m: RegExpMatchArray) => unknown;
 const routes: [string, RegExp, H, boolean?][] = [];
 const on = (method: string, pattern: string, h: H, auth = true) =>
   routes.push([method, new RegExp('^' + pattern.replace(/:(\w+)/g, '([^/]+)') + '$'), h, auth]);
-const own = (c: Ctx, b: Any) => { if (b.driverId !== c.me.id && b.ownerId !== c.me.id) throw err('FORBIDDEN', 403); return b; };
+const own = (c: Ctx, b: Any) => { if (b.driverId !== c.me.id && b.ownerId !== c.me.id && c.me.role !== 'ADMIN') throw err('FORBIDDEN', 403); return b; };
 const getB = (c: Ctx, bid: string) => own(c, db.bookings.find((b) => b.id === bid) || (() => { throw err('NOT_FOUND', 404); })());
 const ownCar = (c: Ctx, cid: string) => { const x = car(cid); if (!x) throw err('NOT_FOUND', 404); if (x.ownerId !== c.me.id) throw err('FORBIDDEN', 403); return x; };
 
@@ -437,8 +451,9 @@ const cancelPreview = (b: Any, isDriver: boolean) => {
 on('GET', '/bookings/:id/cancel-preview', (c, m) => { const b = getB(c, m[1]); return cancelPreview(b, b.driverId === c.me.id); });
 on('POST', '/bookings/:id/cancel', (c, m) => {
   const b = getB(c, m[1]); if (!['REQUESTED', 'PENDING_PAYMENT', 'CONFIRMED'].includes(b.status)) throw err('INVALID_STATUS');
-  const isDriver = b.driverId === c.me.id; const p = cancelPreview(b, isDriver);
-  Object.assign(b, { status: isDriver ? 'CANCELLED_BY_DRIVER' : 'CANCELLED_BY_OWNER', cancelledAt: iso(now()), refundAmount: b.status === 'CONFIRMED' ? p.refund : 0, ownerPenalty: p.penalty });
+  const isDriver = b.driverId === c.me.id; const isAdmin = c.me.role === 'ADMIN' && !isDriver && b.ownerId !== c.me.id; const p = cancelPreview(b, isDriver);
+  Object.assign(b, { status: isDriver ? 'CANCELLED_BY_DRIVER' : isAdmin ? 'CANCELLED_BY_ADMIN' : 'CANCELLED_BY_OWNER', cancelledAt: iso(now()), refundAmount: b.status === 'CONFIRMED' ? p.refund : 0, ownerPenalty: isAdmin ? 0 : p.penalty });
+  if (b.refundAmount > b.walletUsed) db.payments.push({ id: id('p'), bookingId: b.id, userId: b.driverId, type: 'REFUND', method: b.paymentMethod || 'CMI', status: 'PENDING', amount: b.refundAmount - b.walletUsed, orderId: ref('RFD'), raw: { note: `Annulation ${b.reference}` }, createdAt: iso(now()) });
   sysMsg(b.id, `Location annulée par ${isDriver ? 'le conducteur' : 'le propriétaire'}.`);
   return b;
 });
@@ -573,6 +588,127 @@ on('POST', '/account/tickets', (c) => { const t = { id: id('t'), userId: c.me.id
 on('GET', '/public/config', () => ({ insurancePlans: db.plans, ...S, paymentMethods: ['CMI', 'WAFACASH', 'CASHPLUS', 'BANK_TRANSFER'], cmiLive: false }), false);
 on('GET', '/public/help', (c) => db.help.filter((a) => a.locale === (c.q.locale || 'fr')), false);
 on('GET', '/public/help/:slug', (c, m) => db.help.find((a) => a.slug === m[1] && a.locale === (c.q.locale || 'fr')) || db.help.find((a) => a.slug === m[1]), false);
+
+
+// ---------------- back-office (démo) ----------------
+const adm = (c: Ctx) => { if (c.me.role !== 'ADMIN') throw err('ADMIN_ONLY', 403); };
+const A = (method: string, pattern: string, h: H) => on(method, '/admin' + pattern, (c, m) => { adm(c); return h(c, m); });
+const contains = (v: unknown, q: string) => String(v ?? '').toLowerCase().includes(q.toLowerCase());
+const SETTINGS: Any = { ...S, requestExpiryHours: 24, cashPaymentWindowHours: 24, payoutDelayDays: 3 };
+let payouts: Any[] = [];
+A('GET', '/stats', () => {
+  const since = Date.now() - 30 * DAY;
+  const paid = db.bookings.filter((b) => ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status));
+  const count = (arr: Any[], k: string) => Object.entries(arr.reduce((a: Any, x) => ((a[x[k]] = (a[x[k]] || 0) + 1), a), {})).map(([v, n]) => ({ [k]: v, count: n }));
+  const days: Any = {};
+  for (const b of db.bookings.filter((x) => +new Date(x.createdAt) >= since)) { const d = b.createdAt.slice(0, 10); days[d] ||= { day: d, count: 0, gmv: 0 }; days[d].count++; days[d].gmv += b.totalPrice; }
+  return {
+    users: db.users.length, cars: db.cars.filter((x) => x.status === 'ACTIVE').length, pendingCars: db.cars.filter((x) => x.status === 'PENDING_REVIEW').length,
+    pendingUsers: db.users.filter((u) => u.verificationStatus === 'PENDING').length, bookings30: db.bookings.length,
+    gmv30: paid.reduce((a, b) => a + b.totalPrice, 0), revenue30: paid.reduce((a, b) => a + b.commission, 0),
+    awaitingPayments: db.payments.filter((p) => p.status === 'AWAITING_VALIDATION').length, openClaims: db.claims.filter((x) => ['OPEN', 'UNDER_REVIEW'].includes(x.status)).length,
+    contested: db.charges.filter((x) => x.status === 'CONTESTED').length, pendingRefunds: db.payments.filter((p) => p.type === 'REFUND' && p.status === 'PENDING').length,
+    pendingPayouts: payouts.filter((p) => p.status !== 'PAID').length, openTickets: db.tickets.filter((t) => t.status === 'OPEN').length,
+    byStatus: count(db.bookings, 'status'), byCity: count(db.cars.filter((x) => x.status === 'ACTIVE'), 'city'), daily: Object.values(days),
+  };
+});
+A('GET', '/users', (c) => {
+  let items = db.users;
+  if (c.q.search) items = items.filter((u) => ['email', 'firstName', 'lastName', 'phone'].some((k) => contains(u[k], c.q.search)));
+  if (c.q.verification) items = items.filter((u) => u.verificationStatus === c.q.verification);
+  return { total: items.length, items: items.map((u) => ({ ...u, _count: { cars: db.cars.filter((x) => x.ownerId === u.id).length, bookingsAsDriver: db.bookings.filter((b) => b.driverId === u.id).length } })) };
+});
+A('GET', '/users/:id', (c, m) => {
+  const u = user(m[1]);
+  return { ...privateUser(u), cars: db.cars.filter((x) => x.ownerId === u.id), bookingsAsDriver: db.bookings.filter((b) => b.driverId === u.id),
+    bookingsAsOwner: db.bookings.filter((b) => b.ownerId === u.id), walletTxs: db.walletTxs.filter((t) => t.userId === u.id) };
+});
+A('POST', '/users/:id/verification', (c, m) => {
+  const u = user(m[1]); u.verificationStatus = c.body.status; u.verificationNote = c.body.note;
+  db.documents.filter((d) => d.userId === u.id && d.status === 'PENDING').forEach((d) => (d.status = c.body.status));
+  notify(u.id, 'VERIFICATION_' + c.body.status, c.body.status === 'VERIFIED' ? 'Profil vérifié ✅' : 'Vérification refusée', c.body.note || '');
+  return u;
+});
+A('PATCH', '/users/:id', (c, m) => Object.assign(user(m[1]), c.body));
+A('POST', '/users/:id/wallet', (c, m) => {
+  const u = user(m[1]); u.walletBalance += c.body.amount;
+  db.walletTxs.unshift({ id: id('w'), userId: u.id, type: 'ADJUSTMENT', amount: c.body.amount, note: c.body.note, createdAt: iso(now()) });
+  return { balance: u.walletBalance };
+});
+A('GET', '/cars', (c) => {
+  let items = db.cars;
+  if (c.q.status) items = items.filter((x) => x.status === c.q.status);
+  if (c.q.search) items = items.filter((x) => ['make', 'model', 'plate'].some((k) => contains(x[k], c.q.search)));
+  return { total: items.length, items: items.map((x) => ({ ...x, owner: user(x.ownerId), documents: db.documents.filter((d) => d.carId === x.id) })) };
+});
+A('POST', '/cars/:id/review', (c, m) => {
+  const x = car(m[1])!; x.status = c.body.status; x.rejectionReason = c.body.reason || null;
+  notify(x.ownerId, 'CAR_' + x.status, x.status === 'ACTIVE' ? 'Annonce publiée 🚗' : 'Annonce non validée', c.body.reason || `${x.make} ${x.model}`, { carId: x.id });
+  return x;
+});
+A('GET', '/bookings', (c) => {
+  let items = [...db.bookings].reverse();
+  if (c.q.status) items = items.filter((b) => b.status === c.q.status);
+  if (c.q.search) items = items.filter((b) => contains(b.reference, c.q.search));
+  return { total: items.length, items: items.map((b) => ({ ...b, car: car(b.carId), driver: user(b.driverId), owner: user(b.ownerId) })) };
+});
+A('GET', '/bookings/:id', (c, m) => {
+  const b = db.bookings.find((x) => x.id === m[1])!; const v = bookingView(b, c.me);
+  const conv = db.conversations.find((x) => x.bookingId === b.id);
+  return { ...v, car: car(b.carId), driver: user(b.driverId), owner: user(b.ownerId), conversation: { messages: db.messages.filter((x) => x.conversationId === conv?.id) } };
+});
+A('GET', '/payments', (c) => {
+  let items = [...db.payments].reverse();
+  for (const k of ['status', 'type', 'method']) if (c.q[k]) items = items.filter((p) => p[k] === c.q[k]);
+  return { total: items.length, items: items.map((p) => ({ ...p, user: user(p.userId), booking: (() => { const b = db.bookings.find((x) => x.id === p.bookingId); return b && { reference: b.reference, status: b.status }; })() })) };
+});
+A('POST', '/payments/:id/(validate|reject|refunded)', (c, m) => {
+  const p = db.payments.find((x) => x.id === m[1])!;
+  if (m[2] === 'validate') markPaid(p);
+  else if (m[2] === 'reject') { p.status = 'FAILED'; notify(p.userId, 'PAYMENT_REJECTED', 'Paiement non validé', 'Votre preuve de paiement n\'a pas pu être validée.', { bookingId: p.bookingId }); }
+  else { p.status = 'REFUNDED'; p.providerRef = c.body.providerRef; }
+  return p;
+});
+A('GET', '/payouts', (c) => ({ items: payouts.filter((p) => !c.q.status || p.status === c.q.status).map((p) => ({ ...p, owner: user(p.ownerId), bookings: db.bookings.filter((b) => b.payoutId === p.id).map((b) => ({ reference: b.reference, ownerEarnings: b.ownerEarnings })) })) }));
+A('POST', '/payouts/generate', () => {
+  const by: Any = {};
+  for (const b of db.bookings.filter((x) => x.status === 'COMPLETED' && !x.payoutId)) (by[b.ownerId] ||= []).push(b);
+  for (const [ownerId, list] of Object.entries(by) as [string, Any[]][]) {
+    const p = { id: id('po'), ownerId, amount: list.reduce((a, b) => a + b.ownerEarnings, 0), status: 'PENDING', createdAt: iso(now()) };
+    payouts.unshift(p); list.forEach((b) => (b.payoutId = p.id));
+  }
+  return { created: Object.keys(by).length };
+});
+A('POST', '/payouts/:id', (c, m) => {
+  const p = payouts.find((x) => x.id === m[1])!; Object.assign(p, { status: c.body.status, reference: c.body.reference, paidAt: c.body.status === 'PAID' ? iso(now()) : null });
+  if (p.status === 'PAID') notify(p.ownerId, 'PAYOUT_PAID', 'Versement effectué 💸', `${p.amount} MAD ont été virés sur votre compte.`);
+  return p;
+});
+A('GET', '/claims', (c) => db.claims.filter((x) => !c.q.status || x.status === c.q.status).map((x) => { const b = db.bookings.find((y) => y.id === x.bookingId)!; return { ...x, booking: { ...b, car: car(b.carId) }, reporter: user(x.reporterId) }; }));
+A('PATCH', '/claims/:id', (c, m) => Object.assign(db.claims.find((x) => x.id === m[1])!, c.body));
+A('GET', '/charges', (c) => db.charges.filter((x) => !c.q.status || x.status === c.q.status).map((x) => { const b = db.bookings.find((y) => y.id === x.bookingId)!; return { ...x, proofUrls: x.proofUrls || [], booking: { ...b, car: car(b.carId) } }; }));
+A('POST', '/charges/:id', (c, m) => Object.assign(db.charges.find((x) => x.id === m[1])!, { status: c.body.status }, c.body.amount != null ? { amount: c.body.amount } : {}));
+A('GET', '/reviews', () => db.reviews.map((r) => ({ ...r, author: user(r.authorId), targetUser: user(r.targetUserId) })));
+A('POST', '/reviews/:id', (c, m) => Object.assign(db.reviews.find((x) => x.id === m[1])!, { hidden: c.body.hidden }));
+A('GET', '/promos', () => db.promos.map((p, i) => ({ id: p.id || (p.id = 'promo' + i), usedCount: 0, active: true, ...p })));
+A('POST', '/promos', (c) => { const p = { id: id('pr'), usedCount: 0, active: true, ...c.body }; db.promos.unshift(p); return p; });
+A('PATCH', '/promos/:id', (c, m) => Object.assign(db.promos.find((x) => x.id === m[1])!, c.body));
+A('DELETE', '/promos/:id', (c, m) => { db.promos = db.promos.filter((x) => x.id !== m[1]); return { ok: true }; });
+A('GET', '/insurance', () => db.plans);
+A('POST', '/insurance', (c) => { const p = { id: id('ip'), ...c.body }; db.plans.push(p); return p; });
+A('PATCH', '/insurance/:id', (c, m) => Object.assign(db.plans.find((x) => x.id === m[1])!, c.body));
+A('GET', '/help', () => db.help);
+A('POST', '/help', (c) => { const a = { id: id('h'), ...c.body }; db.help.push(a); return a; });
+A('PATCH', '/help/:id', (c, m) => Object.assign(db.help.find((x) => x.id === m[1])!, c.body));
+A('DELETE', '/help/:id', (c, m) => { db.help = db.help.filter((x) => x.id !== m[1]); return { ok: true }; });
+A('GET', '/settings', () => SETTINGS);
+A('PUT', '/settings', (c) => { Object.assign(SETTINGS, c.body); for (const k of Object.keys(S)) if (k in c.body) (S as Any)[k] = c.body[k]; return SETTINGS; });
+A('GET', '/tickets', (c) => db.tickets.filter((t) => !c.q.status || t.status === c.q.status).map((t) => ({ ...t, user: user(t.userId) })));
+A('POST', '/tickets/:id', (c, m) => {
+  const t = db.tickets.find((x) => x.id === m[1])!; Object.assign(t, c.body);
+  if (c.body.reply) notify(t.userId, 'TICKET_REPLY', 'Réponse du support Rentaya', c.body.reply);
+  return t;
+});
 
 export async function demoApi(method: string, path: string, query: Any | undefined, body: Any | undefined, token: string | null) {
   await new Promise((r) => setTimeout(r, 120)); // petite latence réaliste
