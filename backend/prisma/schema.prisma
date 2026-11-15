@@ -1,0 +1,689 @@
+// Rentaya — modèle de données (location de voitures entre particuliers et pros, Maroc)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum VerificationStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentType {
+  ID_FRONT
+  ID_BACK
+  PASSPORT
+  LICENSE_FRONT
+  LICENSE_BACK
+  SELFIE
+  CAR_REGISTRATION
+  CAR_INSURANCE
+  CAR_INSPECTION
+}
+
+enum CarCategory {
+  CITADINE
+  COMPACTE
+  BERLINE
+  SUV
+  QUATRE_X_QUATRE
+  MONOSPACE
+  BREAK
+  CABRIOLET
+  LUXE
+  UTILITAIRE
+  MINIBUS
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+}
+
+enum Fuel {
+  ESSENCE
+  DIESEL
+  HYBRIDE
+  ELECTRIQUE
+  GPL
+}
+
+enum CarStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  PAUSED
+  REJECTED
+  ARCHIVED
+}
+
+enum CancellationPolicy {
+  FLEXIBLE
+  MODERATE
+  STRICT
+}
+
+enum BookingStatus {
+  REQUESTED // demande envoyée au propriétaire
+  PENDING_PAYMENT // acceptée (ou réservation instantanée) en attente de paiement
+  CONFIRMED // payée
+  IN_PROGRESS // état des lieux de départ fait
+  COMPLETED // état des lieux de retour fait
+  DECLINED
+  EXPIRED
+  CANCELLED_BY_DRIVER
+  CANCELLED_BY_OWNER
+  CANCELLED_BY_ADMIN
+}
+
+enum PaymentMethod {
+  CMI
+  CASH
+  WAFACASH
+  CASHPLUS
+  BANK_TRANSFER
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  AWAITING_VALIDATION
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  HELD
+  RELEASED
+  CANCELLED
+}
+
+enum PaymentType {
+  BOOKING
+  DEPOSIT
+  EXTENSION
+  CHARGE
+  REFUND
+}
+
+enum InspectionType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum ChargeType {
+  FUEL
+  EXTRA_KM
+  LATE_RETURN
+  CLEANING
+  FINE
+  TOLL
+  DAMAGE
+  OTHER
+}
+
+enum ChargeStatus {
+  PENDING
+  ACCEPTED
+  CONTESTED
+  PAID
+  REJECTED
+}
+
+enum ClaimStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum ExtensionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  PAID
+  CANCELLED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum ReviewRole {
+  DRIVER_TO_OWNER
+  OWNER_TO_DRIVER
+}
+
+enum PromoType {
+  PERCENT
+  FIXED
+}
+
+enum WalletTxType {
+  REFERRAL_BONUS
+  PROMO_CREDIT
+  BOOKING_PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  phone              String?            @unique
+  passwordHash       String
+  role               Role               @default(USER)
+  firstName          String
+  lastName           String
+  avatarUrl          String?
+  birthDate          DateTime?
+  address            String?
+  city               String?
+  bio                String?
+  language           String             @default("fr")
+  emailVerified      Boolean            @default(false)
+  phoneVerified      Boolean            @default(false)
+  phoneOtp           String?
+  phoneOtpExpires    DateTime?
+  resetToken         String?
+  resetTokenExpires  DateTime?
+  verificationStatus VerificationStatus @default(NONE)
+  verificationNote   String?
+  licenseNumber      String?
+  licenseIssueDate   DateTime?
+  licenseCountry     String?
+  cinNumber          String?
+  isPro              Boolean            @default(false)
+  companyName        String?
+  companyIce         String?
+  bankHolder         String?
+  bankName           String?
+  rib                String?
+  walletBalance      Int                @default(0) // en centimes MAD
+  referralCode       String             @unique
+  referredById       String?
+  referredBy         User?              @relation("Referrals", fields: [referredById], references: [id])
+  referrals          User[]             @relation("Referrals")
+  pushToken          String?
+  notifyEmail        Boolean            @default(true)
+  notifySms          Boolean            @default(true)
+  notifyPush         Boolean            @default(true)
+  ratingAvg          Float              @default(0)
+  ratingCount        Int                @default(0)
+  responseRate       Float              @default(100)
+  responseTimeMin    Int                @default(60)
+  suspended          Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  documents          Document[]
+  cars               Car[]
+  bookingsAsDriver   Booking[]          @relation("DriverBookings")
+  bookingsAsOwner    Booking[]          @relation("OwnerBookings")
+  reviewsWritten     Review[]           @relation("ReviewAuthor")
+  reviewsReceived    Review[]           @relation("ReviewTarget")
+  favorites          Favorite[]
+  notifications      Notification[]
+  messages           Message[]
+  conversationsA     Conversation[]     @relation("ConvA")
+  conversationsB     Conversation[]     @relation("ConvB")
+  payments           Payment[]
+  payouts            Payout[]
+  walletTxs          WalletTransaction[]
+  claims             Claim[]
+  tickets            SupportTicket[]
+  savedSearches      SavedSearch[]
+}
+
+model Document {
+  id        String             @id @default(cuid())
+  userId    String?
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carId     String?
+  car       Car?               @relation(fields: [carId], references: [id], onDelete: Cascade)
+  type      DocumentType
+  url       String
+  status    VerificationStatus @default(PENDING)
+  note      String?
+  expiresAt DateTime?
+  createdAt DateTime           @default(now())
+}
+
+model Car {
+  id                 String             @id @default(cuid())
+  ownerId            String
+  owner              User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  make               String
+  model              String
+  year               Int
+  plate              String
+  category           CarCategory
+  transmission       Transmission
+  fuel               Fuel
+  seats              Int                @default(5)
+  doors              Int                @default(5)
+  odometerKm         Int                @default(0)
+  color              String?
+  title              String?
+  description        String?
+  features           String[]
+  address            String
+  city               String
+  district           String?
+  latitude           Float
+  longitude          Float
+  pricePerDay        Int // MAD
+  smartPricing       Boolean            @default(false)
+  weeklyDiscount     Int                @default(0) // %
+  monthlyDiscount    Int                @default(0) // %
+  instantBooking     Boolean            @default(false)
+  minDays            Int                @default(1)
+  maxDays            Int                @default(30)
+  advanceNoticeHours Int                @default(4)
+  kmPerDay           Int                @default(200)
+  unlimitedKm        Boolean            @default(false)
+  extraKmPrice       Float              @default(1.5) // MAD / km
+  depositAmount      Int                @default(3000) // MAD
+  minDriverAge       Int                @default(21)
+  minLicenseYears    Int                @default(2)
+  deliveryAvailable  Boolean            @default(false)
+  deliveryPrice      Int                @default(0)
+  deliveryRadiusKm   Int                @default(10)
+  airportDelivery    Boolean            @default(false)
+  cancellationPolicy CancellationPolicy @default(MODERATE)
+  fuelPolicy         String             @default("SAME_LEVEL") // SAME_LEVEL | FULL_TO_FULL
+  smokingAllowed     Boolean            @default(false)
+  petsAllowed        Boolean            @default(false)
+  crossBorderAllowed Boolean            @default(false)
+  pickupInstructions String?
+  status             CarStatus          @default(DRAFT)
+  rejectionReason    String?
+  ratingAvg          Float              @default(0)
+  ratingCount        Int                @default(0)
+  tripsCount         Int                @default(0)
+  inspectionExpiry   DateTime?
+  insuranceExpiry    DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  photos             CarPhoto[]
+  unavailabilities   Unavailability[]
+  priceOverrides     PriceOverride[]
+  bookings           Booking[]
+  reviews            Review[]
+  favorites          Favorite[]
+  documents          Document[]
+  conversations      Conversation[]
+
+  @@index([city, status])
+  @@index([latitude, longitude])
+}
+
+model CarPhoto {
+  id        String   @id @default(cuid())
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Unavailability {
+  id        String   @id @default(cuid())
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  startAt   DateTime
+  endAt     DateTime
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model PriceOverride {
+  id    String   @id @default(cuid())
+  carId String
+  car   Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  date  DateTime @db.Date
+  price Int
+
+  @@unique([carId, date])
+}
+
+model InsurancePlan {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  nameFr        String
+  nameAr        String
+  nameEn        String
+  descriptionFr String
+  descriptionAr String
+  descriptionEn String
+  pricePerDay   Int // MAD
+  franchise     Int // MAD — montant restant à charge en cas de sinistre
+  roadside      Boolean   @default(true)
+  position      Int       @default(0)
+  active        Boolean   @default(true)
+  bookings      Booking[]
+}
+
+model Booking {
+  id                 String          @id @default(cuid())
+  reference          String          @unique
+  carId              String
+  car                Car             @relation(fields: [carId], references: [id])
+  driverId           String
+  driver             User            @relation("DriverBookings", fields: [driverId], references: [id])
+  ownerId            String
+  owner              User            @relation("OwnerBookings", fields: [ownerId], references: [id])
+  startAt            DateTime
+  endAt              DateTime
+  status             BookingStatus
+  instant            Boolean         @default(false)
+  message            String?
+  days               Int
+  pricePerDay        Int
+  basePrice          Int
+  discountAmount     Int             @default(0)
+  deliveryFee        Int             @default(0)
+  deliveryAddress    String?
+  insurancePlanId    String?
+  insurancePlan      InsurancePlan?  @relation(fields: [insurancePlanId], references: [id])
+  insuranceFee       Int             @default(0)
+  serviceFee         Int             @default(0)
+  promoCode          String?
+  promoDiscount      Int             @default(0)
+  walletUsed         Int             @default(0)
+  totalPrice         Int // payé par le conducteur (MAD)
+  commission         Int // gardé par Rentaya
+  ownerEarnings      Int
+  depositAmount      Int
+  kmIncluded         Int
+  unlimitedKm        Boolean         @default(false)
+  extraKmPrice       Float
+  paymentMethod      PaymentMethod?
+  paymentDueAt       DateTime?
+  requestExpiresAt   DateTime?
+  acceptedAt         DateTime?
+  paidAt             DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+  refundAmount       Int             @default(0)
+  ownerPenalty       Int             @default(0)
+  payoutId           String?
+  payout             Payout?         @relation(fields: [payoutId], references: [id])
+  driverReviewed     Boolean         @default(false)
+  ownerReviewed      Boolean         @default(false)
+  contractNumber     String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  inspections        Inspection[]
+  payments           Payment[]
+  reviews            Review[]
+  extensions         Extension[]
+  charges            Charge[]
+  claims             Claim[]
+  conversation       Conversation?
+
+  @@index([carId, startAt, endAt])
+  @@index([driverId])
+  @@index([ownerId])
+}
+
+model Inspection {
+  id              String         @id @default(cuid())
+  bookingId       String
+  booking         Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type            InspectionType
+  odometerKm      Int
+  fuelLevel       Int // 0..8 (huitièmes)
+  cleanliness     Int            @default(3) // 1..5
+  photos          String[]
+  damages         Json           @default("[]") // [{zone, description, photoUrl}]
+  notes           String?
+  driverSignature String? // data URL / image
+  ownerSignature  String?
+  driverSignedAt  DateTime?
+  ownerSignedAt   DateTime?
+  createdById     String
+  createdAt       DateTime       @default(now())
+
+  @@unique([bookingId, type])
+}
+
+model Extension {
+  id          String          @id @default(cuid())
+  bookingId   String
+  booking     Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  newEndAt    DateTime
+  extraDays   Int
+  extraPrice  Int
+  status      ExtensionStatus @default(PENDING)
+  createdAt   DateTime        @default(now())
+}
+
+model Charge {
+  id          String       @id @default(cuid())
+  bookingId   String
+  booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type        ChargeType
+  amount      Int
+  description String
+  proofUrls   String[]
+  status      ChargeStatus @default(PENDING)
+  response    String?
+  createdById String
+  payoutId    String?
+  createdAt   DateTime     @default(now())
+}
+
+model Claim {
+  id          String      @id @default(cuid())
+  bookingId   String
+  booking     Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reporter    User        @relation(fields: [reporterId], references: [id])
+  description String
+  photos      String[]
+  estimate    Int?
+  status      ClaimStatus @default(OPEN)
+  resolution  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String?
+  booking     Booking?      @relation(fields: [bookingId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  type        PaymentType
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+  amount      Int
+  orderId     String        @unique
+  providerRef String?
+  proofUrl    String?
+  extensionId String?
+  chargeId    String?
+  raw         Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Payout {
+  id        String       @id @default(cuid())
+  ownerId   String
+  owner     User         @relation(fields: [ownerId], references: [id])
+  amount    Int
+  status    PayoutStatus @default(PENDING)
+  reference String?
+  paidAt    DateTime?
+  createdAt DateTime     @default(now())
+  bookings  Booking[]
+}
+
+model Review {
+  id            String     @id @default(cuid())
+  bookingId     String
+  booking       Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User       @relation("ReviewAuthor", fields: [authorId], references: [id])
+  targetUserId  String
+  targetUser    User       @relation("ReviewTarget", fields: [targetUserId], references: [id])
+  carId         String?
+  car           Car?       @relation(fields: [carId], references: [id])
+  role          ReviewRole
+  rating        Int
+  cleanliness   Int?
+  communication Int?
+  accuracy      Int?
+  punctuality   Int?
+  comment       String?
+  reply         String?
+  hidden        Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+
+  @@unique([bookingId, authorId])
+}
+
+model Favorite {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, carId])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  userAId       String
+  userA         User      @relation("ConvA", fields: [userAId], references: [id])
+  userBId       String
+  userB         User      @relation("ConvB", fields: [userBId], references: [id])
+  carId         String?
+  car           Car?      @relation(fields: [carId], references: [id])
+  bookingId     String?   @unique
+  booking       Booking?  @relation(fields: [bookingId], references: [id])
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  messages      Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?        @relation(fields: [senderId], references: [id])
+  body           String
+  imageUrl       String?
+  system         Boolean      @default(false)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model PromoCode {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  type              PromoType
+  value             Int
+  maxDiscount       Int?
+  minAmount         Int       @default(0)
+  maxUses           Int?
+  usedCount         Int       @default(0)
+  firstBookingOnly  Boolean   @default(false)
+  validFrom         DateTime?
+  validTo           DateTime?
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+}
+
+model WalletTransaction {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      WalletTxType
+  amount    Int // MAD, positif = crédit
+  note      String?
+  createdAt DateTime     @default(now())
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city      String?
+  params    Json
+  createdAt DateTime @default(now())
+}
+
+model HelpArticle {
+  id        String   @id @default(cuid())
+  slug      String
+  locale    String
+  category  String
+  title     String
+  body      String
+  position  Int      @default(0)
+  published Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([slug, locale])
+}
+
+model SupportTicket {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  bookingId String?
+  subject   String
+  body      String
+  status    TicketStatus @default(OPEN)
+  reply     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
