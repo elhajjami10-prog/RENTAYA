@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Rentaya",
+    "slug": "rentaya",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "rentaya",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F2FD"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ma.rentaya.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Rentaya utilise l'appareil photo pour les photos du véhicule, l'état des lieux et la vérification de votre identité.",
+        "NSPhotoLibraryUsageDescription": "Rentaya accède à vos photos pour ajouter des images de véhicule et vos documents.",
+        "NSLocationWhenInUseUsageDescription": "Rentaya utilise votre position pour trouver les voitures proches de vous."
+      }
+    },
+    "android": {
+      "package": "ma.rentaya.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F7F2FD"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Rentaya — Location de voitures entre particuliers au Maroc",
+      "themeColor": "#6A1BD0"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-localization",
+      "expo-web-browser",
+      ["expo-image-picker", { "photosPermission": "Rentaya accède à vos photos pour ajouter des images de véhicule et vos documents.", "cameraPermission": "Rentaya utilise l'appareil photo pour l'état des lieux et vos documents." }],
+      ["expo-location", { "locationWhenInUsePermission": "Rentaya utilise votre position pour trouver les voitures proches de vous." }],
+      ["expo-notifications", { "color": "#6A1BD0" }]
+    ],
+    "experiments": { "typedRoutes": false },
+    "extra": {}
+  }
+}

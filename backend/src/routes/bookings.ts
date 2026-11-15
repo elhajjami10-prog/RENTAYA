@@ -264,7 +264,7 @@ r.post('/:id/cancel', ah(async (req, res) => {
   let penalty = 0;
   if (b.status === 'CONFIRMED') {
     if (isDriver) refund = driverCancellationRefund(b.car.cancellationPolicy, b.startAt, new Date(), b).refund;
-    else { refund = b.totalPrice + b.walletUsed; penalty = s.ownerCancelPenalty; }
+    else { refund = b.totalPrice + b.walletUsed; penalty = isOwner ? s.ownerCancelPenalty : 0; }
   }
   const status = isDriver ? 'CANCELLED_BY_DRIVER' : isOwner ? 'CANCELLED_BY_OWNER' : 'CANCELLED_BY_ADMIN';
   // part non remboursée au conducteur : revient au propriétaire (hors frais de service)
