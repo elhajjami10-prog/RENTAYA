@@ -111,3 +111,12 @@ Français, arabe (interface de droite à gauche) et anglais. La langue de l'appa
 
 Cycle de vie d'une réservation :
 `REQUESTED → PENDING_PAYMENT → CONFIRMED → IN_PROGRESS (état des lieux de départ) → COMPLETED (état des lieux de retour)`, avec en parallèle `DECLINED`, `EXPIRED` et `CANCELLED_*`.
+
+## Démo en ligne (GitHub Pages)
+
+Le dossier `docs/` contient une version de démonstration autonome (sans serveur, données fictives) :
+- page d'accueil : `docs/index.html`
+- application : `docs/demo/` (générée avec `WEB_BASE_URL=/RENTAYA/demo EXPO_PUBLIC_DEMO=1 EXPO_PUBLIC_API_URL=/ npx expo export --platform web --output-dir ../docs/demo` depuis `mobile/`)
+- back-office : `docs/admin/index.html` (généré avec `VITE_DEMO=1 npx vite build && python3 build-demo-html.py …` depuis `admin/`)
+
+Activation : GitHub → Settings → Pages → « Deploy from a branch », dossier `/docs`.

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Card, ListItem, LoginPrompt, Notice, Row, Screen, Section, Stars, T } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { DEMO } from '../../lib/api';
 import { money } from '../../lib/format';
 import { colors } from '../../lib/theme';
 
@@ -69,7 +70,7 @@ export default function Profile() {
           <ListItem icon="help-circle-outline" title={t('help.title')} onPress={() => router.push('/account/help')} />
           <ListItem icon="chatbox-ellipses-outline" title={t('support.title')} onPress={() => router.push('/account/support')} />
           <ListItem icon="document-text-outline" title={t('legal.title')} onPress={() => router.push('/account/legal')} />
-          {user.role === 'ADMIN' ? <ListItem icon="speedometer-outline" title={t('profile.admin')} onPress={() => Linking.openURL(Platform.OS === 'web' ? `${window.location.protocol}//${window.location.hostname}:5173` : 'http://localhost:5173')} /> : null}
+          {user.role === 'ADMIN' ? <ListItem icon="speedometer-outline" title={t('profile.admin')} onPress={() => Linking.openURL(DEMO && process.env.EXPO_PUBLIC_ADMIN_URL ? process.env.EXPO_PUBLIC_ADMIN_URL : Platform.OS === 'web' ? `${window.location.protocol}//${window.location.hostname}:5173` : 'http://localhost:5173')} /> : null}
           <ListItem icon="log-out-outline" danger title={t('auth.logout')} onPress={logout} />
         </Card>
       </Section>
